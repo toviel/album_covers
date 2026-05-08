@@ -2,17 +2,15 @@
 <html>
 <head>
 <style>
-  body { margin: 0; background: transparent; overflow-x: auto; }
-  canvas { display: block; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: transparent; overflow-x: auto; }
   #container {
     display: flex;
     flex-direction: row;
-    gap: 40px;
-    padding: 40px;
+    gap: 60px;
+    padding: 60px;
     align-items: center;
-  }
-  .album-canvas {
-    cursor: grab;
+    min-height: 100vh;
   }
 </style>
 </head>
@@ -21,72 +19,187 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 const albums = [
-  { image: "getting_killed.JPG", color: "#a8c8e8" },
-  // Add more like: { image: "album2.JPG", color: "#hexcolor" },
+  { image: "getting_killed.JPG" },
+  // { image: "album2.JPG" },
 ];
+
+function createSmearTexture(sourceImage, side) {
+  const size = 512;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+
+  const sw = sourceImage.width;
+  const sh = sourceImage.height;
+  const sliceWidth = Math.floor(sw * 0.08);
+
+  if (side === "right") {
+    for (let x = 0; x < size; x++) {
+      const srcX = sw - sliceWidth + Math.floor((x / size) * sliceWidth);
+      ctx.drawImage(sourceImage, srcX, 0, 1, sh, x, 0, 1, size);
+    }
+  } else if (side === "left") {
+    for (let x = 0; x < size; x++) {
+      const srcX = Math.floor((x / size) * sliceWidth);
+      ctx.drawImage(sourceImage, srcX, 0, 1, sh, x, 0, 1, size);
+    }
+  } else if (side === "top") {
+    for (let y = 0; y < size; y++) {
+      const srcY = Math.floor((y / size) * sliceWidth);
+      ctx.drawImage(sourceImage, 0, srcY, sw, 1, 0, y, size, 1);
+    }
+  } else if (side === "bottom") {
+    for (let y = 0; y < size; y++) {
+      const srcY = sh - sliceWidth + Math.floor((y / size) * sliceWidth);
+      ctx.drawImage(sourceImage, 0, srcY, sw, 1, 0, y, size, 1);
+    }
+  } else if (side === "back") {
+    ctx.filter = "blur(20px)";
+    ctx.drawImage(sourceImage, -20, -20, size + 40, size + 40);
+  }
+
+  // Add smear distortion
+  const imageData = ctx.getImageData(0, 0, size, size);
+  const data = imageData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const noise = (Math.random() - 0.5) * 15;
+    data[i] = Math.min(255, Math.max(0, data[i] + noise));
+    data[i+1] = Math.min(255, Math.max(0, data[i+1] + noise));
+    data[i+2] = Math.min(255, Math.max(0, data[i+2] + noise));
+  }
+  ctx.putImageData(imageData, 0, 0);
+
+  return new THREE.CanvasTexture(canvas);
+}
+
+function createRoundedBoxGeometry(width, height, depth, radius, segments) {
+  const shape = new THREE.Shape();
+  const w = width / 2 - radius;
+  const h = height / 2 - radius;
+  shape.moveTo(-w, -height / 2);
+  shape.lineTo(w, -height / 2);
+  shape.quadraticCurveTo(width / 2, -height / 2, width / 2, -h);
+  shape.lineTo(width / 2, h);
+  shape.quadraticCurveTo(width / 2, height / 2, w, height / 2);
+  shape.lineTo(-w, height / 2);
+  shape.quadraticCurveTo(-width / 2, height / 2, -width / 2, h);
+  shape.lineTo(-width / 2, -h);
+  shape.quadraticCurveTo(-width / 2, -height / 2, -w, -height / 2);
+
+  const extrudeSettings = {
+    depth: depth,
+    bevelEnabled: true,
+    bevelSegments: segments,
+    bevelSize: radius,
+    bevelThickness: radius,
+    curveSegments: segments
+  };
+
+  return new THREE.ExtrudeGeometry(shape, extrudeSettings);
+}
 
 albums.forEach(album => {
   const container = document.getElementById("container");
   const canvas = document.createElement("canvas");
-  canvas.width = 300;
-  canvas.height = 300;
-  canvas.className = "album-canvas";
+  canvas.width = 400;
+  canvas.height = 400;
+  canvas.style.cursor = "grab";
   container.appendChild(canvas);
 
   const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-  renderer.setSize(300, 300);
+  renderer.setSize(400, 400);
+  renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setClearColor(0x000000, 0);
+  renderer.shadowMap.enabled = true;
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-  camera.position.z = 2.5;
+  const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
+  camera.position.z = 4;
 
-  const texture = new THREE.TextureLoader().load(album.image);
-  const sideColor = new THREE.MeshStandardMaterial({ color: album.color });
-  const frontMat = new THREE.MeshStandardMaterial({ map: texture });
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  img.onload = () => {
+    const frontTexture = new THREE.TextureLoader().load(album.image);
 
-  const materials = [
-    sideColor, sideColor, sideColor, sideColor, frontMat, sideColor
-  ];
+    const rightTex = createSmearTexture(img, "right");
+    const leftTex = createSmearTexture(img, "left");
+    const topTex = createSmearTexture(img, "top");
+    const bottomTex = createSmearTexture(img, "bottom");
+    const backTex = createSmearTexture(img, "back");
 
-  const geometry = new THREE.BoxGeometry(1.5, 1.5, 0.2);
-  const cube = new THREE.Mesh(geometry, materials);
-  scene.add(cube);
+    const geometry = new THREE.BoxGeometry(1.8, 1.8, 0.55, 1, 1, 1);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-  scene.add(ambientLight);
-  const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
-  dirLight.position.set(5, 5, 5);
-  scene.add(dirLight);
+    const materials = [
+      new THREE.MeshStandardMaterial({ map: rightTex }),
+      new THREE.MeshStandardMaterial({ map: leftTex }),
+      new THREE.MeshStandardMaterial({ map: topTex }),
+      new THREE.MeshStandardMaterial({ map: bottomTex }),
+      new THREE.MeshStandardMaterial({ map: frontTexture }),
+      new THREE.MeshStandardMaterial({ map: backTex }),
+    ];
 
-  let isDragging = false;
-  let prevMouse = { x: 0, y: 0 };
+    const cube = new THREE.Mesh(geometry, materials);
+    cube.rotation.y = -0.3;
+    cube.rotation.x = 0.1;
+    scene.add(cube);
 
-  canvas.addEventListener("mousedown", e => {
-    isDragging = true;
-    prevMouse = { x: e.clientX, y: e.clientY };
-  });
-  window.addEventListener("mouseup", () => isDragging = false);
-  window.addEventListener("mousemove", e => {
-    if (!isDragging) return;
-    cube.rotation.y += (e.clientX - prevMouse.x) * 0.01;
-    cube.rotation.x += (e.clientY - prevMouse.y) * 0.01;
-    prevMouse = { x: e.clientX, y: e.clientY };
-  });
+    const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+    scene.add(ambient);
+    const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+    dir.position.set(3, 5, 5);
+    scene.add(dir);
+    const fill = new THREE.DirectionalLight(0xffffff, 0.2);
+    fill.position.set(-3, -2, -3);
+    scene.add(fill);
 
-  canvas.addEventListener("touchstart", e => {
-    prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  });
-  canvas.addEventListener("touchmove", e => {
-    cube.rotation.y += (e.touches[0].clientX - prevMouse.x) * 0.01;
-    cube.rotation.x += (e.touches[0].clientY - prevMouse.y) * 0.01;
-    prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  });
+    let isDragging = false;
+    let prevMouse = { x: 0, y: 0 };
+    let velX = 0, velY = 0;
 
-  (function animate() {
-    requestAnimationFrame(animate);
-    renderer.render(scene, camera);
-  })();
+    canvas.addEventListener("mousedown", e => {
+      isDragging = true;
+      velX = 0; velY = 0;
+      prevMouse = { x: e.clientX, y: e.clientY };
+      canvas.style.cursor = "grabbing";
+    });
+    window.addEventListener("mouseup", () => {
+      isDragging = false;
+      canvas.style.cursor = "grab";
+    });
+    window.addEventListener("mousemove", e => {
+      if (!isDragging) return;
+      velX = (e.clientX - prevMouse.x) * 0.012;
+      velY = (e.clientY - prevMouse.y) * 0.012;
+      cube.rotation.y += velX;
+      cube.rotation.x += velY;
+      prevMouse = { x: e.clientX, y: e.clientY };
+    });
+
+    canvas.addEventListener("touchstart", e => {
+      prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    });
+    canvas.addEventListener("touchmove", e => {
+      e.preventDefault();
+      velX = (e.touches[0].clientX - prevMouse.x) * 0.012;
+      velY = (e.touches[0].clientY - prevMouse.y) * 0.012;
+      cube.rotation.y += velX;
+      cube.rotation.x += velY;
+      prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }, { passive: false });
+
+    (function animate() {
+      requestAnimationFrame(animate);
+      if (!isDragging) {
+        cube.rotation.y += velX;
+        cube.rotation.x += velY;
+        velX *= 0.92;
+        velY *= 0.92;
+      }
+      renderer.render(scene, camera);
+    })();
+  };
+  img.src = album.image;
 });
 </script>
 </body>
