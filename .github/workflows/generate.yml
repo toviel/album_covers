@@ -4,11 +4,14 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: write
+
 jobs:
   generate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Generate HTML files for each JPEG
         run: |
@@ -16,9 +19,6 @@ jobs:
             [ -f "$img" ] || continue
             name="${img%.*}"
             outfile="${name}.html"
-            if [ "$img" = "getting_killed.JPG" ] && [ "$outfile" = "getting_killed.html" ]; then
-              : # skip if you want index.html to remain the main one
-            fi
             cat > "$outfile" << HTMLEOF
           <!DOCTYPE html>
           <html>
