@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { margin: 0; background: transparent; overflow-x: auto; }
+  canvas { display: block; }
+  #container {
+    display: flex;
+    flex-direction: row;
+    gap: 40px;
+    padding: 40px;
+    align-items: center;
+  }
+  .album-canvas {
+    cursor: grab;
+  }
+</style>
+</head>
+<body>
+<div id="container"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const albums = [
+  { image: "album1.jpg", color: "#a8c8e8" },
+  // Add more like: { image: "album2.jpg", color: "#f0e68c" },
+];
+
+albums.forEach(album => {
+  const container = document.getElementById("container");
+  const canvas = document.createElement("canvas");
+  canvas.width = 300;
+  canvas.height = 300;
+  canvas.className = "album-canvas";
+  container.appendChild(canvas);
+
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  renderer.setSize(300, 300);
+  renderer.setClearColor(0x000000, 0);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+  camera.position.z = 2.5;
+
+  const texture = new THREE.TextureLoader().load(album.image);
+  const sideColor = new THREE.MeshStandardMaterial({ color: album.color });
+  const frontMat = new THREE.MeshStandardMaterial({ map: texture });
+
+  const materials = [
+    sideColor, sideColor, sideColor, sideColor, frontMat, sideColor
+  ];
+
+  const geometry = new THREE.BoxGeometry(1.5, 1.5, 0.2);
+  const cube = new THREE.Mesh(geometry, materials);
+  scene.add(cube);
+
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+  scene.add(ambientLight);
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+  dirLight.position.set(5, 5, 5);
+  scene.add(dirLight);
+
+  let isDragging = false;
+  let prevMouse = { x: 0, y: 0 };
+
+  canvas.addEventListener("mousedown", e => {
+    isDragging = true;
+    prevMouse = { x: e.clientX, y: e.clientY };
+  });
+  window.addEventListener("mouseup", () => isDragging = false);
+  window.addEventListener("mousemove", e => {
+    if (!isDragging) return;
+    cube.rotation.y += (e.clientX - prevMouse.x) * 0.01;
+    cube.rotation.x += (e.clientY - prevMouse.y) * 0.01;
+    prevMouse = { x: e.clientX, y: e.clientY };
+  });
+
+  canvas.addEventListener("touchstart", e => {
+    prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  });
+  canvas.addEventListener("touchmove", e => {
+    cube.rotation.y += (e.touches[0].clientX - prevMouse.x) * 0.01;
+    cube.rotation.x += (e.touches[0].clientY - prevMouse.y) * 0.01;
+    prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  });
+
+  (function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+  })();
+});
+</script>
+</body>
+</html>
