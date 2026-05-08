@@ -19,14 +19,14 @@
 <script type="importmap">
 {
   "imports": {
-    "three": "https://unpkg.com/three@0.155.0/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@0.155.0/examples/jsm/"
+    "three": "./three.module.js",
+    "three/addons/": "./"
   }
 }
 </script>
 <script type="module">
 import * as THREE from "three";
-import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import { RoundedBoxGeometry } from "./RoundedBoxGeometry.js";
 
 const albums = [
   { image: "getting_killed.JPG" },
@@ -34,7 +34,7 @@ const albums = [
 ];
 
 function createSmearTexture(sourceImage, side) {
-  const size = 512;
+  const size = 256;
   const canvas = document.createElement("canvas");
   canvas.width = size;
   canvas.height = size;
@@ -108,14 +108,14 @@ albums.forEach(album => {
     const bottomTex = createSmearTexture(img, "bottom");
     const backTex   = createSmearTexture(img, "back");
 
-    const geometry = new RoundedBoxGeometry(1.8, 1.8, 0.55, 4, 0.08);
+    const geometry = new RoundedBoxGeometry(1.8, 1.8, 0.55, 4, 0.15);
 
     const materials = [
       new THREE.MeshStandardMaterial({ map: rightTex }),
       new THREE.MeshStandardMaterial({ map: leftTex }),
       new THREE.MeshStandardMaterial({ map: topTex }),
       new THREE.MeshStandardMaterial({ map: bottomTex }),
-      new THREE.MeshStandardMaterial({ map: frontTexture }),
+      new THREE.MeshStandardMaterial({ map: frontTexture, roughness: 0.3, metalness: 0.0 }),
       new THREE.MeshStandardMaterial({ map: backTex }),
     ];
 
@@ -123,12 +123,12 @@ albums.forEach(album => {
     cube.rotation.y = -0.3;
     scene.add(cube);
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+    const ambient = new THREE.AmbientLight(0xffffff, 1.0);
     scene.add(ambient);
-    const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+    const dir = new THREE.DirectionalLight(0xffffff, 1.2);
     dir.position.set(3, 5, 5);
     scene.add(dir);
-    const fill = new THREE.DirectionalLight(0xffffff, 0.2);
+    const fill = new THREE.DirectionalLight(0xffffff, 0.4);
     fill.position.set(-3, -2, -3);
     scene.add(fill);
 
