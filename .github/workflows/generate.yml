@@ -25,14 +25,15 @@ jobs:
           <head>
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { background: transparent; overflow-x: auto; }
+            body { background: transparent; overflow: hidden; }
             #container {
               display: flex;
               flex-direction: row;
               gap: 60px;
-              padding: 60px;
+              padding: 40px;
               align-items: center;
-              min-height: 100vh;
+              justify-content: center;
+              height: 100vh;
             }
           </style>
           </head>
@@ -105,13 +106,14 @@ jobs:
           albums.forEach(album => {
             const container = document.getElementById("container");
             const canvas = document.createElement("canvas");
-            canvas.width = 400;
-            canvas.height = 400;
+            canvas.width = 480;
+            canvas.height = 480;
             canvas.style.cursor = "grab";
+            canvas.style.touchAction = "none";
             container.appendChild(canvas);
 
             const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-            renderer.setSize(400, 400);
+            renderer.setSize(480, 480);
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setClearColor(0x000000, 0);
 
@@ -179,9 +181,10 @@ jobs:
               });
 
               canvas.addEventListener("touchstart", e => {
+                e.preventDefault();
                 prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
                 velX = 0;
-              });
+              }, { passive: false });
               canvas.addEventListener("touchmove", e => {
                 e.preventDefault();
                 velX = (e.touches[0].clientX - prevMouse.x) * 0.012;
