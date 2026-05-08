@@ -64,8 +64,21 @@ function createSmearTexture(sourceImage, side) {
       ctx.drawImage(sourceImage, 0, srcY, sw, 1, 0, y, size, 1);
     }
   } else if (side === "back") {
-    ctx.filter = "blur(24px)";
-    ctx.drawImage(sourceImage, -20, -20, size + 40, size + 40);
+    const sliceW = Math.floor(sw * 0.08);
+    for (let x = 0; x < size; x++) {
+      const t = x / size;
+      const srcXLeft = Math.floor(t * sliceW);
+      const srcXRight = sw - sliceW + Math.floor(t * sliceW);
+      const blendCanvas = document.createElement("canvas");
+      blendCanvas.width = 1;
+      blendCanvas.height = size;
+      const bCtx = blendCanvas.getContext("2d");
+      bCtx.globalAlpha = 1 - t;
+      bCtx.drawImage(sourceImage, srcXLeft, 0, 1, sh, 0, 0, 1, size);
+      bCtx.globalAlpha = t;
+      bCtx.drawImage(sourceImage, srcXRight, 0, 1, sh, 0, 0, 1, size);
+      ctx.drawImage(blendCanvas, 0, 0, 1, size, x, 0, 1, size);
+    }
   }
 
   const imageData = ctx.getImageData(0, 0, size, size);
